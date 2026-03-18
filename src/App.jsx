@@ -25,8 +25,8 @@ const fmt = (d) => { if (!d) return "—"; const dt = new Date(d); return dt.toL
 const repClr = [["#4f46e5","#e0e7ff"],["#d97706","#fef3c7"],["#db2777","#fce7f3"],["#059669","#d1fae5"],["#dc2626","#fee2e2"],["#7c3aed","#ede9fe"]];
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
-const light = { bg: "#ffffff", bg2: "#fbfbfa", bg3: "#f5f5f4", border: "#e8e8e6", borderLight: "#f0f0ee", text: "#111", text2: "#666", text3: "#aaa", text4: "#ccc", accent: "#111", accentBg: "#f5f5f5", green: "#059669", greenBg: "#ecfdf5", blue: "#2563eb", blueBg: "#eff6ff", red: "#ef4444", redBg: "#fef2f2", amber: "#d97706", amberBg: "#fffbeb", sidebarBg: "#fbfbfa", sidebarHover: "rgba(0,0,0,0.04)", sidebarActive: "rgba(0,0,0,0.06)", sidebarText: "#111", sidebarDim: "#888", cardBg: "#fff", inputBg: "#fff", btnPrimary: "#111", btnPrimaryText: "#fff", shadow: "0 1px 3px rgba(0,0,0,0.04)" };
-const dark = { bg: "#111113", bg2: "#19191b", bg3: "#222225", border: "#2c2c30", borderLight: "#232327", text: "#e8e8e6", text2: "#a0a0a0", text3: "#666", text4: "#444", accent: "#fff", accentBg: "#222225", green: "#34d399", greenBg: "#064e3b33", blue: "#60a5fa", blueBg: "#1e3a5f33", red: "#fb7185", redBg: "#4c000033", amber: "#fbbf24", amberBg: "#4c350033", sidebarBg: "#19191b", sidebarHover: "rgba(255,255,255,0.04)", sidebarActive: "rgba(255,255,255,0.07)", sidebarText: "#e8e8e6", sidebarDim: "#666", cardBg: "#19191b", inputBg: "#222225", btnPrimary: "#fff", btnPrimaryText: "#111", shadow: "0 1px 3px rgba(0,0,0,0.2)" };
+const light = { bg: "#f5f3ef", bg2: "#efede9", bg3: "#e8e5df", border: "#e0ddd6", borderLight: "#ece9e3", text: "#2d2d2d", text2: "#6b6862", text3: "#a09d97", text4: "#c5c2bb", accent: "#2d2d2d", accentBg: "#e8e5df", green: "#4a9e6e", greenBg: "#edf7f0", blue: "#4a8fe7", blueBg: "#edf4fd", red: "#d45858", redBg: "#fdf0f0", amber: "#c4873b", amberBg: "#fdf5eb", sidebarBg: "#1e293b", sidebarHover: "rgba(255,255,255,0.04)", sidebarActive: "rgba(255,255,255,0.07)", sidebarText: "#fff", sidebarDim: "rgba(255,255,255,0.4)", cardBg: "#ffffff", inputBg: "#ffffff", btnPrimary: "#2d2d2d", btnPrimaryText: "#f5f3ef", shadow: "0 1px 3px rgba(0,0,0,0.04)" };
+const dark = { bg: "#1a1a1e", bg2: "#141416", bg3: "#222226", border: "rgba(255,255,255,0.07)", borderLight: "rgba(255,255,255,0.04)", text: "rgba(255,255,255,0.88)", text2: "rgba(255,255,255,0.55)", text3: "rgba(255,255,255,0.3)", text4: "rgba(255,255,255,0.15)", accent: "rgba(255,255,255,0.88)", accentBg: "rgba(255,255,255,0.06)", green: "#6ee7b7", greenBg: "rgba(16,185,129,0.1)", blue: "#93c5fd", blueBg: "rgba(59,130,246,0.1)", red: "#fca5a5", redBg: "rgba(239,68,68,0.1)", amber: "#fbbf24", amberBg: "rgba(217,119,6,0.1)", sidebarBg: "#141416", sidebarHover: "rgba(255,255,255,0.04)", sidebarActive: "rgba(255,255,255,0.06)", sidebarText: "rgba(255,255,255,0.88)", sidebarDim: "rgba(255,255,255,0.3)", cardBg: "rgba(255,255,255,0.03)", inputBg: "rgba(255,255,255,0.06)", btnPrimary: "rgba(255,255,255,0.88)", btnPrimaryText: "#1a1a1e", shadow: "0 1px 3px rgba(0,0,0,0.3)" };
 const ThemeCtx = createContext(light);
 const useTheme = () => useContext(ThemeCtx);
 
@@ -69,41 +69,39 @@ function LoginScreen({ onLogin }) {
   const [loading, setLoading] = useState(false); const [err, setErr] = useState("");
   const go = async () => { if (!email || !pw) return setErr("Enter email and password"); setLoading(true); setErr(""); try { const a = await loginAuth(email, pw); const p = await sb(`/rest/v1/profiles?id=eq.${a.user.id}&select=*`, { token: a.access_token }); if (!p?.[0]) throw new Error("Profile not found"); onLogin({ token: a.access_token, user: a.user, profile: p[0] }); } catch (e) { setErr(e.message); } setLoading(false); };
   return (
-    <div style={{ minHeight: "100vh", display: "flex", fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)", position: "relative", overflow: "hidden" }}>
-      {/* Decorative circles — soft colors */}
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", gap: 80, fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)", position: "relative", overflow: "hidden", padding: "40px 60px" }}>
+      {/* Decorative circles */}
       <div style={{ position: "absolute", top: -120, right: -60, width: 450, height: 450, borderRadius: "50%", background: "rgba(139,92,246,0.1)" }} />
       <div style={{ position: "absolute", bottom: -100, left: -40, width: 350, height: 350, borderRadius: "50%", background: "rgba(56,189,248,0.08)" }} />
       <div style={{ position: "absolute", top: "55%", left: "30%", width: 200, height: 200, borderRadius: "50%", background: "rgba(251,146,60,0.06)" }} />
       <div style={{ position: "absolute", top: "15%", left: "50%", width: 120, height: 120, borderRadius: "50%", background: "rgba(52,211,153,0.07)" }} />
 
       {/* Left — branding */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "60px 40px", position: "relative", zIndex: 1 }}>
-        <div style={{ maxWidth: 440, width: "100%" }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 28 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          </div>
-          <h1 style={{ color: "#fff", fontSize: 38, fontWeight: 800, margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Auto Dealers Digital</h1>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 17, margin: "0 0 52px", lineHeight: 1.5 }}>Prospecting workspace</p>
-
-          <div style={{ display: "flex", gap: 16 }}>
-            {[
-              ["⚡", "Fast", "Find and track prospects at scale"],
-              ["🎯", "Focused", "Every rep sees only what matters to them"],
-              ["📈", "Measured", "Real-time progress across your whole team"],
-            ].map(([icon, title, desc]) => (
-              <div key={title} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "20px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: 24, marginBottom: 10 }}>{icon}</div>
-                <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{title}</div>
-                <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
-              </div>
-            ))}
-          </div>
+      <div style={{ maxWidth: 440, position: "relative", zIndex: 1 }}>
+        <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 28 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         </div>
-        <div style={{ position: "absolute", bottom: 28, color: "rgba(255,255,255,0.15)", fontSize: 12 }}>© 2025 Auto Dealers Digital</div>
+        <h1 style={{ color: "#fff", fontSize: 38, fontWeight: 800, margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Auto Dealers Digital</h1>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 17, margin: "0 0 52px", lineHeight: 1.5 }}>Prospecting workspace</p>
+
+        <div style={{ display: "flex", gap: 16 }}>
+          {[
+            ["⚡", "Fast", "Find and track prospects at scale"],
+            ["🎯", "Focused", "Every rep sees only what matters to them"],
+            ["📈", "Measured", "Real-time progress across your whole team"],
+          ].map(([icon, title, desc]) => (
+            <div key={title} style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, padding: "20px 16px", textAlign: "center" }}>
+              <div style={{ fontSize: 24, marginBottom: 10 }}>{icon}</div>
+              <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{title}</div>
+              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 12, lineHeight: 1.5 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 60, color: "rgba(255,255,255,0.15)", fontSize: 12 }}>© 2025 Auto Dealers Digital</div>
       </div>
 
       {/* Right — sign-in card */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 40px 40px 0", position: "relative", zIndex: 1, flexShrink: 0 }}>
+      <div style={{ position: "relative", zIndex: 1, flexShrink: 0 }}>
         <div style={{ width: 340, background: "rgba(248,250,252,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.6)", borderRadius: 20, padding: "40px 32px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
           <h2 style={{ color: "#111", fontSize: 22, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Welcome back</h2>
           <p style={{ color: "#999", fontSize: 14, margin: "0 0 28px" }}>Sign in to your account</p>
