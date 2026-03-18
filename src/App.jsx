@@ -95,7 +95,7 @@ function Table({ columns, rows, emptyText = "No data" }) {
         <tbody>
           {rows.length === 0 && <tr><td colSpan={columns.length}><Empty text={emptyText} /></td></tr>}
           {rows.map((row, i) => (
-            <tr key={row._key || i} style={{ borderTop: i > 0 ? `1px solid ${C.borderLight}` : "none", background: row._highlight ? C.blueBg : "transparent" }} onMouseEnter={(e) => { if (!row._highlight) e.currentTarget.style.background = "#f8fafc"; }} onMouseLeave={(e) => { if (!row._highlight) e.currentTarget.style.background = "transparent"; }}>
+            <tr key={row._key || i} style={{ borderTop: i > 0 ? `1px solid ${C.borderLight}` : "none" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
               {columns.map((col) => <td key={col.key} style={{ padding: "12px 16px", textAlign: col.align || "left", fontSize: 13, color: C.text }}>{col.render ? col.render(row, i) : row[col.key]}</td>)}
             </tr>
           ))}
@@ -229,6 +229,83 @@ function UploadModal({ onClose, onDone }) {
   );
 }
 
+// ─── EDIT LIST MODAL ──────────────────────────────────────────────────────────
+function EditListModal({ list, token, onClose, onDone }) {
+  const [name, setName] = useState(list.name || "");
+  const [provider, setProvider] = useState(list.provider || "");
+  const [state, setState] = useState(list.state || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // CSV replace
+  const [urls, setUrls] = useState([]);
+  const [fileName, setFileName] = useState("");
+  const [replaceCSV, setReplaceCSV] = useState(false);
+
+  const handleFile = async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try { setFileName(f.name); const p = await parseCSV(f); setUrls(p); setError(p.length === 0 ? "No valid URLs found" : ""); } catch { setError("Failed to read file"); }
+  };
+
+  const submit = async () => {
+    if (!name.trim()) return setError("Enter a list name");
+    setLoading(true); setError("");
+    try {
+      // Update list details
+      await sb(`/rest/v1/lists?id=eq.${list.id}`, { method: "PATCH", token, body: { name: name.trim(), provider: provider.trim() || null, state: state.trim() || null } });
+
+      // Replace CSV if new file uploaded
+      if (replaceCSV && urls.length > 0) {
+        // Delete old websites
+        await sb(`/rest/v1/websites?list_id=eq.${list.id}`, { method: "DELETE", token });
+        // Delete old progress
+        await sb(`/rest/v1/progress?website_id=not.is.null`, { method: "DELETE", token });
+        // Delete old assignments
+        await sb(`/rest/v1/assignments?list_id=eq.${list.id}`, { method: "DELETE", token });
+        // Insert new websites
+        const rows = urls.map((url, i) => ({ list_id: list.id, url, position: i + 1 }));
+        for (let i = 0; i < rows.length; i += 100) await sb("/rest/v1/websites", { method: "POST", token, body: rows.slice(i, i + 100) });
+      }
+      onDone();
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 16, padding: 32, width: 440, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+        <h2 style={{ margin: "0 0 20px", fontSize: 17, fontWeight: 700, color: C.text }}>Edit List</h2>
+        {[{ l: "List Name *", v: name, s: setName, p: "List name" }, { l: "Provider", v: provider, s: setProvider, p: "Optional" }, { l: "State", v: state, s: setState, p: "Optional" }].map((f) => (
+          <div key={f.l} style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 12, color: C.textDim, marginBottom: 5, fontWeight: 600 }}>{f.l}</label><input value={f.v} onChange={(e) => f.s(e.target.value)} placeholder={f.p} style={css.input} /></div>
+        ))}
+
+        {!replaceCSV ? (
+          <div style={{ marginBottom: 18 }}>
+            <Btn onClick={() => setReplaceCSV(true)} variant="danger" small>Replace CSV file</Btn>
+            <p style={{ fontSize: 11, color: C.textFaint, marginTop: 6 }}>Warning: replacing the CSV will delete all existing websites, progress, and assignments for this list.</p>
+          </div>
+        ) : (
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: "block", fontSize: 12, color: C.textDim, marginBottom: 5, fontWeight: 600 }}>New CSV File</label>
+            <label style={{ display: "block", padding: 22, background: C.redBg, border: `2px dashed #fecaca`, borderRadius: 8, textAlign: "center", cursor: "pointer" }}>
+              <input type="file" accept=".csv,.txt" onChange={handleFile} style={{ display: "none" }} />
+              <div style={{ color: C.red, fontSize: 13, fontWeight: 600 }}>{fileName || "Click to select new CSV file"}</div>
+              {urls.length > 0 && <div style={{ color: C.green, fontSize: 12, marginTop: 6, fontWeight: 600 }}>✓ {urls.length} unique websites found</div>}
+            </label>
+            <button onClick={() => { setReplaceCSV(false); setUrls([]); setFileName(""); }} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 12, marginTop: 6 }}>← Cancel CSV replacement</button>
+          </div>
+        )}
+
+        <ErrorMsg msg={error} />
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <Btn onClick={onClose} variant="ghost">Cancel</Btn>
+          <Btn onClick={submit} disabled={loading}>{loading && <Spinner size={14} color="#fff" />} {loading ? "Saving..." : "Save Changes"}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ASSIGN MODAL ─────────────────────────────────────────────────────────────
 function AssignModal({ list, reps, assignments, websiteCount, token, onClose, onDone }) {
   const existing = useMemo(() => assignments.map((a) => ({ rep_id: a.rep_id, name: a.profiles?.full_name || "Unknown", start: a.start_position || 1, end: a.end_position || websiteCount })), [assignments, websiteCount]);
@@ -239,9 +316,59 @@ function AssignModal({ list, reps, assignments, websiteCount, token, onClose, on
   const totalAssigned = slots.reduce((sum, s) => sum + Math.max(0, (s.end || 0) - (s.start || 0) + 1), 0);
   const unassigned = websiteCount - totalAssigned;
   const addRep = () => { if (!selRep) return; const rep = reps.find((r) => r.id === selRep); if (!rep) return; setSlots((p) => [...p, { rep_id: rep.id, name: rep.full_name, start: 0, end: 0 }]); setSelRep(""); };
-  const removeSlot = (idx) => setSlots((p) => p.filter((_, i) => i !== idx));
+  const removeSlot = (idx) => {
+    setSlots((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (next.length === 0) return next;
+      // Recalculate positions after removal
+      let pos = 1;
+      return next.map((s) => {
+        const c = Math.max(0, (s.end || 0) - (s.start || 0) + 1);
+        const start = pos; pos += c;
+        return { ...s, start, end: start + c - 1 };
+      });
+    });
+  };
   const getCount = (s) => Math.max(0, (s.end || 0) - (s.start || 0) + 1);
-  const setCount = (idx, v) => { const count = Math.max(0, parseInt(v) || 0); setSlots((p) => { const n = [...p]; let pos = 1; for (let i = 0; i < n.length; i++) { const c = i === idx ? count : getCount(n[i]); n[i] = { ...n[i], start: pos, end: pos + c - 1 }; pos += c; } return n; }); };
+
+  const setCount = (idx, v) => {
+    const count = Math.max(0, parseInt(v) || 0);
+    setSlots((prev) => {
+      const next = [...prev];
+      const oldCount = getCount(next[idx]);
+      next[idx] = { ...next[idx], _manualCount: count };
+
+      // Calculate remaining after this manual entry
+      const remaining = websiteCount - count;
+      const otherSlots = next.filter((_, i) => i !== idx);
+      const otherTotal = otherSlots.reduce((sum, s, i2) => sum + getCount(prev[i2 < idx ? i2 : i2 + 1]), 0);
+
+      // Redistribute remaining among other slots proportionally
+      if (otherSlots.length > 0 && remaining >= 0) {
+        const perOther = Math.floor(remaining / otherSlots.length);
+        const rem = remaining % otherSlots.length;
+        let otherIdx = 0;
+        for (let i = 0; i < next.length; i++) {
+          if (i === idx) continue;
+          const c = perOther + (otherIdx < rem ? 1 : 0);
+          next[i] = { ...next[i], _autoCount: c };
+          otherIdx++;
+        }
+      }
+
+      // Now recalculate positions
+      let pos = 1;
+      for (let i = 0; i < next.length; i++) {
+        const c = i === idx ? count : (next[i]._autoCount !== undefined ? next[i]._autoCount : getCount(next[i]));
+        next[i] = { ...next[i], start: pos, end: pos + Math.max(0, c) - 1 };
+        pos += Math.max(0, c);
+        delete next[i]._manualCount;
+        delete next[i]._autoCount;
+      }
+      return next;
+    });
+  };
+
   const distributeEvenly = () => { if (!slots.length) return; const per = Math.floor(websiteCount / slots.length); const rem = websiteCount % slots.length; let pos = 1; setSlots((p) => p.map((s, i) => { const c = per + (i < rem ? 1 : 0); const st = pos; pos += c; return { ...s, start: st, end: st + c - 1 }; })); };
   const validate = () => { for (const s of slots) { if (s.start < 1 || s.end < 1 || s.start > s.end) return "Each rep must have a valid range"; if (s.end > websiteCount) return `Range exceeds total (${websiteCount})`; } const sorted = [...slots].sort((a, b) => a.start - b.start); for (let i = 1; i < sorted.length; i++) { if (sorted[i].start <= sorted[i - 1].end) return "Ranges overlap"; } return null; };
   const submit = async () => {
@@ -285,16 +412,17 @@ function AssignModal({ list, reps, assignments, websiteCount, token, onClose, on
 }
 
 // ─── REASSIGN MODAL ───────────────────────────────────────────────────────────
-function ReassignModal({ list, assignments, websites, progress, token, onClose, onDone }) {
+function ReassignModal({ list, reps, assignments, websites, progress, token, onClose, onDone }) {
   const [fromRep, setFromRep] = useState("");
   const [toRep, setToRep] = useState("");
-  const [mode, setMode] = useState("unvisited"); // "unvisited" | "selected" | "all"
+  const [mode, setMode] = useState("unvisited");
   const [selectedPositions, setSelectedPositions] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const fromAssignment = assignments.find((a) => a.rep_id === fromRep);
   const toAssignment = assignments.find((a) => a.rep_id === toRep);
+  const toRepIsNew = toRep && !toAssignment;
 
   const fromWebsites = useMemo(() => {
     if (!fromAssignment) return [];
@@ -311,11 +439,7 @@ function ReassignModal({ list, assignments, websites, progress, token, onClose, 
   }, [fromWebsites, progress, fromRep]);
 
   const togglePosition = (pos) => {
-    setSelectedPositions((prev) => {
-      const next = new Set(prev);
-      next.has(pos) ? next.delete(pos) : next.add(pos);
-      return next;
-    });
+    setSelectedPositions((prev) => { const next = new Set(prev); next.has(pos) ? next.delete(pos) : next.add(pos); return next; });
   };
 
   const getMovingWebsites = () => {
@@ -335,17 +459,20 @@ function ReassignModal({ list, assignments, websites, progress, token, onClose, 
       const movingPositions = moving.map((w) => w.position).sort((a, b) => a - b);
       const remainingFromPositions = fromWebsites.filter((w) => !movingPositions.includes(w.position)).map((w) => w.position).sort((a, b) => a - b);
 
-      // Get current to-rep positions
-      const toStart = toAssignment?.start_position || 0;
-      const toEnd = toAssignment?.end_position || 0;
-      const toPositions = websites.filter((w) => w.position >= toStart && w.position <= toEnd).map((w) => w.position);
-      const newToPositions = [...toPositions, ...movingPositions].sort((a, b) => a - b);
+      let newToPositions;
+      if (toAssignment) {
+        const toStart = toAssignment.start_position || 0;
+        const toEnd = toAssignment.end_position || 0;
+        const toPositions = websites.filter((w) => w.position >= toStart && w.position <= toEnd).map((w) => w.position);
+        newToPositions = [...toPositions, ...movingPositions].sort((a, b) => a - b);
+      } else {
+        newToPositions = [...movingPositions].sort((a, b) => a - b);
+      }
 
-      // Delete old assignments for both reps
+      // Delete old assignments
       await sb(`/rest/v1/assignments?list_id=eq.${list.id}&rep_id=eq.${fromRep}`, { method: "DELETE", token });
       if (toAssignment) await sb(`/rest/v1/assignments?list_id=eq.${list.id}&rep_id=eq.${toRep}`, { method: "DELETE", token });
 
-      // Re-create with new ranges
       if (remainingFromPositions.length > 0) {
         await sb("/rest/v1/assignments", { method: "POST", token, body: { list_id: list.id, rep_id: fromRep, start_position: Math.min(...remainingFromPositions), end_position: Math.max(...remainingFromPositions) } });
       }
@@ -359,6 +486,9 @@ function ReassignModal({ list, assignments, websites, progress, token, onClose, 
 
   const movingCount = getMovingWebsites().length;
 
+  // All reps for "To Rep" dropdown (except the from rep)
+  const toRepOptions = reps.filter((r) => r.id !== fromRep);
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200 }} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 16, padding: 32, width: 560, maxWidth: "95vw", maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
@@ -368,7 +498,7 @@ function ReassignModal({ list, assignments, websites, progress, token, onClose, 
         <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: "block", fontSize: 12, color: C.textDim, marginBottom: 5, fontWeight: 600 }}>From Rep</label>
-            <select value={fromRep} onChange={(e) => { setFromRep(e.target.value); setSelectedPositions(new Set()); }} style={{ ...css.select, width: "100%" }}>
+            <select value={fromRep} onChange={(e) => { setFromRep(e.target.value); setSelectedPositions(new Set()); setToRep(""); }} style={{ ...css.select, width: "100%" }}>
               <option value="">Select...</option>
               {assignments.map((a) => <option key={a.rep_id} value={a.rep_id}>{a.profiles?.full_name} (#{a.start_position}–#{a.end_position})</option>)}
             </select>
@@ -378,10 +508,20 @@ function ReassignModal({ list, assignments, websites, progress, token, onClose, 
             <label style={{ display: "block", fontSize: 12, color: C.textDim, marginBottom: 5, fontWeight: 600 }}>To Rep</label>
             <select value={toRep} onChange={(e) => setToRep(e.target.value)} style={{ ...css.select, width: "100%" }}>
               <option value="">Select...</option>
-              {assignments.filter((a) => a.rep_id !== fromRep).map((a) => <option key={a.rep_id} value={a.rep_id}>{a.profiles?.full_name} (#{a.start_position}–#{a.end_position})</option>)}
+              {toRepOptions.map((r) => {
+                const a = assignments.find((a) => a.rep_id === r.id);
+                const label = a ? `${r.full_name} (#{a.start_position}–#{a.end_position})` : `${r.full_name} (not on this list)`;
+                return <option key={r.id} value={r.id}>{label}</option>;
+              })}
             </select>
           </div>
         </div>
+
+        {toRepIsNew && (
+          <div style={{ background: C.blueBg, border: "1px solid #bfdbfe", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.blue, marginBottom: 16 }}>
+            This rep is not currently on this list — they will be added with the moved websites.
+          </div>
+        )}
 
         {fromRep && (
           <>
@@ -413,7 +553,7 @@ function ReassignModal({ list, assignments, websites, progress, token, onClose, 
 
             {movingCount > 0 && (
               <div style={{ background: C.orangeBg, border: "1px solid #fed7aa", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: C.orange, marginBottom: 16 }}>
-                {movingCount} website{movingCount !== 1 ? "s" : ""} will be moved{toRep ? ` to ${assignments.find((a) => a.rep_id === toRep)?.profiles?.full_name}` : ""}
+                {movingCount} website{movingCount !== 1 ? "s" : ""} will be moved{toRep ? ` to ${reps.find((r) => r.id === toRep)?.full_name}` : ""}
               </div>
             )}
           </>
@@ -438,19 +578,23 @@ function MgrListDetail({ list, reps, onBack }) {
   const [websites, setWebsites] = useState([]); const [progress, setProgress] = useState([]); const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true); const [error, setError] = useState("");
   const [showAssign, setShowAssign] = useState(false); const [showReassign, setShowReassign] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [currentList, setCurrentList] = useState(list);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [ws, prog, asgn] = await Promise.all([
-        sb(`/rest/v1/websites?list_id=eq.${list.id}&order=position.asc&select=*`, { token: t }),
+      const [ls, ws, prog, asgn] = await Promise.all([
+        sb(`/rest/v1/lists?id=eq.${currentList.id}&select=*`, { token: t }),
+        sb(`/rest/v1/websites?list_id=eq.${currentList.id}&order=position.asc&select=*`, { token: t }),
         sb(`/rest/v1/progress?select=*`, { token: t }),
-        sb(`/rest/v1/assignments?list_id=eq.${list.id}&select=*,profiles(full_name,id)`, { token: t }),
+        sb(`/rest/v1/assignments?list_id=eq.${currentList.id}&select=*,profiles(full_name,id)`, { token: t }),
       ]);
+      if (ls?.[0]) setCurrentList(ls[0]);
       setWebsites(ws || []); setProgress(prog || []); setAssignments(asgn || []);
     } catch (e) { setError(e.message); }
     setLoading(false);
-  }, [list.id, t]);
+  }, [currentList.id, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -468,9 +612,10 @@ function MgrListDetail({ list, reps, onBack }) {
     <div>
       <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", color: C.accent, cursor: "pointer", fontSize: 13, marginBottom: 16, padding: 0, fontWeight: 600 }}>← Back to Lists</button>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 4 }}>
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.text }}>{list.name}</h2>
-        {list.provider && <Badge color={C.accent} bg={C.accentBg}>{list.provider}</Badge>}
-        {list.state && <Badge color={C.textDim} bg={C.bg}>{list.state}</Badge>}
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: C.text }}>{currentList.name}</h2>
+        {currentList.provider && <Badge color={C.accent} bg={C.accentBg}>{currentList.provider}</Badge>}
+        {currentList.state && <Badge color={C.textDim} bg={C.bg}>{currentList.state}</Badge>}
+        <Btn onClick={() => setShowEdit(true)} variant="ghost" small>✏️ Edit</Btn>
       </div>
       <p style={{ color: C.textFaint, fontSize: 12, margin: "0 0 20px" }}>{websites.length} websites</p>
       <ErrorMsg msg={error} onRetry={load} />
@@ -479,7 +624,7 @@ function MgrListDetail({ list, reps, onBack }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>Assigned Reps</div>
           <div style={{ display: "flex", gap: 8 }}>
-            {assignments.length >= 2 && <Btn onClick={() => setShowReassign(true)} variant="warning" small>↔ Reassign</Btn>}
+            {assignments.length >= 1 && <Btn onClick={() => setShowReassign(true)} variant="warning" small>↔ Reassign</Btn>}
             <Btn onClick={() => setShowAssign(true)} small>{assignments.length > 0 ? "Edit Assignments" : "Assign Reps"}</Btn>
           </div>
         </div>
@@ -516,8 +661,9 @@ function MgrListDetail({ list, reps, onBack }) {
         emptyText="No websites in this list"
       />
 
-      {showAssign && <AssignModal list={list} reps={reps} assignments={assignments} websiteCount={websites.length} token={t} onClose={() => setShowAssign(false)} onDone={() => { setShowAssign(false); load(); }} />}
-      {showReassign && <ReassignModal list={list} assignments={assignments} websites={websites} progress={progress} token={t} onClose={() => setShowReassign(false)} onDone={() => { setShowReassign(false); load(); }} />}
+      {showAssign && <AssignModal list={currentList} reps={reps} assignments={assignments} websiteCount={websites.length} token={t} onClose={() => setShowAssign(false)} onDone={() => { setShowAssign(false); load(); }} />}
+      {showReassign && <ReassignModal list={currentList} reps={reps} assignments={assignments} websites={websites} progress={progress} token={t} onClose={() => setShowReassign(false)} onDone={() => { setShowReassign(false); load(); }} />}
+      {showEdit && <EditListModal list={currentList} token={t} onClose={() => setShowEdit(false)} onDone={() => { setShowEdit(false); load(); }} />}
     </div>
   );
 }
