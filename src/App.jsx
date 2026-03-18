@@ -77,8 +77,8 @@ function LoginScreen({ onLogin }) {
       <div style={{ position: "absolute", top: "15%", left: "50%", width: 120, height: 120, borderRadius: "50%", background: "rgba(52,211,153,0.07)" }} />
 
       {/* Left — branding */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "60px 60px", position: "relative", zIndex: 1 }}>
-        <div style={{ maxWidth: 440 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "60px 40px", position: "relative", zIndex: 1 }}>
+        <div style={{ maxWidth: 440, width: "100%" }}>
           <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.08)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 28 }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,0.9)"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
           </div>
@@ -99,11 +99,11 @@ function LoginScreen({ onLogin }) {
             ))}
           </div>
         </div>
-        <div style={{ position: "absolute", bottom: 28, left: 60, color: "rgba(255,255,255,0.15)", fontSize: 12 }}>© 2025 Auto Dealers Digital</div>
+        <div style={{ position: "absolute", bottom: 28, color: "rgba(255,255,255,0.15)", fontSize: 12 }}>© 2025 Auto Dealers Digital</div>
       </div>
 
       {/* Right — sign-in card */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 60px", position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 40px 40px 0", position: "relative", zIndex: 1, flexShrink: 0 }}>
         <div style={{ width: 340, background: "rgba(248,250,252,0.95)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.6)", borderRadius: 20, padding: "40px 32px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
           <h2 style={{ color: "#111", fontSize: 22, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Welcome back</h2>
           <p style={{ color: "#999", fontSize: 14, margin: "0 0 28px" }}>Sign in to your account</p>
